@@ -1,16 +1,32 @@
 name: Build Android APK
+
 on: [push, workflow_dispatch]
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+
+      # Этот шаг автоматически создаст все необходимые папки Android, если их нет в репозитории
+      - name: Recreate Android project files
+        run: |
+          if [ -f "lib/pubspec.yaml" ]; then mv lib/pubspec.yaml ./; fi
+          if [ ! -f "pubspec.yaml" ]; then
+            echo "Error: pubspec.yaml not found at root!"
+            exit 1
+          fi
+          flutter create . --platforms=android --force
+
       - run: flutter pub get
       - run: flutter build apk --release --split-per-abi
+      
+      # Загружаем все собранные APK файлы (для всех архитектур)
       - uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+          name: app-release-apks
+          path: build/app/outputs/flutter-apk/*.apk
